@@ -64,8 +64,11 @@ def sentence_length_spread(text: str) -> float:
     `stdev` raises on fewer than two values. Decide what that should return
     before the attack set decides for you.
     """
-    # TODO: replace this
-    return 0.0
+    lengths = [len(words(sentence)) for sentence in sentences(text)]
+    if len(lengths) < 2 or not any(lengths):
+        return 0.0
+    mean = statistics.mean(lengths)
+    return round(statistics.stdev(lengths) / mean, 4) if mean else 0.0
 
 
 def type_token_ratio(text: str) -> float:
@@ -80,8 +83,10 @@ def type_token_ratio(text: str) -> float:
     directly comparable on it, and if your test inputs vary a lot in length,
     that alone can look like a signal.
     """
-    # TODO: replace this
-    return 0.0
+    tokens = words(text)
+    if not tokens:
+        return 0.0
+    return round(len(set(tokens)) / len(tokens), 4)
 
 
 def punctuation_density(text: str) -> float:
@@ -94,8 +99,11 @@ def punctuation_density(text: str) -> float:
         more interesting than full stops, because they vary more between
         writers.
     """
-    # TODO: replace this
-    return 0.0
+    visible = [char for char in text if not char.isspace()]
+    if not visible:
+        return 0.0
+    punctuation = re.findall(r"[^\w\s]", text, flags=re.UNICODE)
+    return round(len(punctuation) / len(visible), 4)
 
 
 # ── Combining them ───────────────────────────────────────────────────────────
@@ -122,8 +130,15 @@ def style_signal(text: str) -> float:
     you trust it. Plain and ordinary, not formal: formal prose reads as *human*
     to signal one, and it is plain writing that gets accused.
     """
-    # TODO: replace this
-    return 0.5
+    if not words(text):
+        return 0.5
+
+    spread_ai = 1.0 - min(sentence_length_spread(text) / 0.8, 1.0)
+    vocabulary_ai = 1.0 - type_token_ratio(text)
+    punctuation_ai = 1.0 - min(punctuation_density(text) / 0.12, 1.0)
+
+    score = 0.45 * spread_ai + 0.35 * vocabulary_ai + 0.20 * punctuation_ai
+    return round(min(max(score, 0.0), 1.0), 4)
 
 
 if __name__ == "__main__":
