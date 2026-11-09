@@ -78,7 +78,4 @@ POST /appeal
 
 ## How I Used AI
 
-- AI helped check the stylometry edge cases. I added safe behavior for empty
-  text and one-sentence submissions.
-- AI helped review the endpoint contract. I added clear 4xx errors and checked
-  that appeals require an existing content ID.
+- AI helped review the endpoint contract. I added clear 4xx errors.
