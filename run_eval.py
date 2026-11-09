@@ -119,7 +119,7 @@ def main():
                     response = requests.post(f"{args.url}/submit", json=body,
                                              timeout=args.timeout)
                     payload = response.json() if response.content else {}
-                    results.append({
+                    result = {
                         "status": response.status_code,
                         "guess": payload.get("guess"),
                         "confidence": payload.get("confidence"),
@@ -127,7 +127,21 @@ def main():
                         "style_score": payload.get("style_score"),
                         "label": payload.get("label"),
                         "sent": preview,
-                    })
+                    }
+                    if scenario.get("appeal") and payload.get("content_id"):
+                        appeal = requests.post(
+                            f"{args.url}/appeal",
+                            json={
+                                "content_id": payload["content_id"],
+                                "reasoning": scenario["reasoning"],
+                            },
+                            timeout=args.timeout,
+                        )
+                        appeal_payload = appeal.json() if appeal.content else {}
+                        result["appeal_status"] = appeal.status_code
+                        result["appeal_result"] = appeal_payload.get("status")
+                        result["appeal_reasoning"] = scenario["reasoning"]
+                    results.append(result)
                 except Exception as exc:  # noqa: BLE001
                     results.append({"status": None, "error": f"{type(exc).__name__}: {exc}",
                                     "sent": preview})

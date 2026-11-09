@@ -1,118 +1,77 @@
-"""
-What your test runs. ← UNIT 8, MILESTONE 3
+"""Inputs used by run_eval.py for the five acceptance criteria."""
 
-Each of your five criteria needs something run against it. A criterion about
-false positives needs your own writing. One about label coverage needs inputs
-across the score range. One about the appeal path needs a real content_id.
+HUMAN_TEXTS = [
+    "Okay so if no item matches then the app stops running.",
+    "The caption returned should be short and include key details like item name.",
+    "I need to catch on the course and understand how all of it works.",
+    "Wait I need the questions only right, check and do not fill expectations.",
+    "Okay short answer to all five, just add them.",
+    "What am I supposed to do, tell me where to find or read it.",
+    "Yeah these are just facts so this works for me.",
+    "I need shorter readme additions and do we need to report anything.",
+    "Say AI helped me with identifying the staff task, that is all.",
+    "Okay change this part to say AI helped me tighten the filters.",
+]
 
-Working that out is Milestone 3's first step, and this file is where you write
-it down. `run_eval.py` runs everything here three times.
+AI_TEXTS = [
+    "The implementation of this framework requires a comprehensive approach. It should balance efficiency, accuracy, and scalability while maintaining robust safeguards. These considerations are essential for achieving reliable outcomes.",
+    "Artificial intelligence continues to transform modern industries in significant ways. Organizations can use automated systems to improve productivity, streamline decisions, and reduce repetitive work. Responsible implementation remains essential for long-term success.",
+    "Effective communication is an important component of organizational success. Clear messaging promotes alignment, supports collaboration, and minimizes misunderstandings across teams. Leaders should therefore prioritize consistent and transparent communication practices.",
+    "Sustainable development requires coordinated action across economic, social, and environmental dimensions. Policymakers must evaluate competing priorities while protecting the interests of future generations. A balanced strategy can produce resilient and equitable growth.",
+    "Digital tools provide students with flexible opportunities for learning and collaboration. They can expand access to resources, support personalized instruction, and improve engagement. Thoughtful use of technology can therefore strengthen educational outcomes.",
+]
 
-Two are filled in as examples. Replace them with what your criteria actually
-need — these are a shape, not a set.
+BORDERLINE_TEXTS = [
+    "The tool worked on my first test, but I still want a person to check the result before anyone is accused.",
+    "A clean score looks useful on paper. In practice, one odd sentence can shift it, so I would treat the output as a warning rather than proof.",
+]
 
-A scenario carries **either** of these:
-
-    "texts"   a list of strings. Each is sent as {"text": ..., "creator_id": ...}
-              with a creator_id made up for you. Use this for most criteria.
-
-    "bodies"  a list of whole request bodies, sent exactly as written. Use this
-              when the malformed request IS the point — empty text, no `text`
-              field at all, something enormous. A bad-input criterion needs it,
-              because you cannot express "the field is missing" as a string.
-"""
 
 SCENARIOS = [
+    {"name": "human false positives", "criterion": 1, "texts": HUMAN_TEXTS},
     {
-        "name": "my own writing",
-        "criterion": 1,
-        # ⚠️ PUT YOUR OWN WRITING HERE. Not AI text, not a sample from the web —
-        # things you actually wrote. This is the criterion that matters most and
-        # it's meaningless with someone else's prose.
-        "texts": [
-            "REPLACE ME with a paragraph you wrote yourself.",
-            "REPLACE ME with another one. Ten pieces is the usual number.",
-        ],
-    },
-    {
-        "name": "label coverage",
+        "name": "AI and human score gap",
         "criterion": 2,
-        # Inputs spread across your score range, so you can check all three
-        # labels are actually reachable.
-        "texts": [
-            "REPLACE ME with something you're confident is AI-generated.",
-            "REPLACE ME with something you're confident is human-written.",
-            "REPLACE ME with something genuinely borderline.",
+        "texts": AI_TEXTS + HUMAN_TEXTS[:5],
+    },
+    {
+        "name": "all three labels",
+        "criterion": 3,
+        "texts": AI_TEXTS[:4] + HUMAN_TEXTS[:4] + BORDERLINE_TEXTS,
+    },
+    {
+        "name": "valid appeals",
+        "criterion": 4,
+        "texts": HUMAN_TEXTS[:5],
+        "appeal": True,
+        "reasoning": "I wrote this text myself and can provide my drafts.",
+    },
+    {
+        "name": "invalid submissions",
+        "criterion": 5,
+        "bodies": [
+            {"creator_id": "eval_bad_missing"},
+            {"text": "", "creator_id": "eval_bad_empty"},
+            {"text": 42, "creator_id": "eval_bad_type"},
+            {"text": "two words", "creator_id": "eval_bad_short"},
+            {"text": "word " * 2500, "creator_id": "eval_bad_huge"},
         ],
     },
-    # A bad-input criterion looks like this. Uncomment and adjust if that's one
-    # of your five — these are raw request bodies, sent exactly as written.
-    #
-    # {
-    #     "name": "bad input",
-    #     "criterion": 3,
-    #     "bodies": [
-    #         {"text": "", "creator_id": "eval_bad_empty"},
-    #         {"creator_id": "eval_bad_missing"},          # no text field at all
-    #         {"text": "word " * 50000, "creator_id": "eval_bad_huge"},
-    #         {"text": None, "creator_id": "eval_bad_null"},
-    #     ],
-    # },
-
-    # TODO: add what your remaining criteria need.
-    #
-    # A criterion about the appeal path can't be tested by sending text alone;
-    # it needs a submission first and then an appeal against the content_id
-    # that came back. You'll need to test that one by hand, or extend this file
-    # and run_eval.py to do it. Saying which you did is part of the write-up.
 ]
 
 
 def validate() -> list[str]:
-    """
-    Complain about anything malformed, before a long run rather than during.
-
-    A "bodies" scenario is deliberately exempt from the empty check — an empty
-    string is the whole point of a bad-input case, and refusing to run one
-    would make that criterion untestable.
-    """
+    """Return configuration problems before a long model run starts."""
     problems = []
     for i, scenario in enumerate(SCENARIOS, 1):
         if not scenario.get("name"):
             problems.append(f"scenario {i} has no name")
-
         texts = scenario.get("texts")
         bodies = scenario.get("bodies")
-
-        if texts and bodies:
-            problems.append(
-                f"scenario {i} ('{scenario.get('name')}') has both texts and "
-                f"bodies — pick one"
-            )
-            continue
-
-        if bodies:
-            for j, body in enumerate(bodies, 1):
-                if not isinstance(body, dict):
-                    problems.append(
-                        f"scenario {i}, body {j} is not a dict — bodies are whole "
-                        f"request bodies, like {{'text': '', 'creator_id': 'x'}}"
-                    )
-            continue
-
-        if not texts:
-            problems.append(f"scenario {i} has no texts and no bodies")
-            continue
-
-        for j, text in enumerate(texts, 1):
-            if not str(text).strip():
-                problems.append(
-                    f"scenario {i}, text {j} is empty — if an empty submission is what "
-                    f"you're testing, use 'bodies' instead of 'texts'"
-                )
-            elif str(text).startswith("REPLACE ME"):
-                problems.append(
-                    f"scenario {i} ('{scenario.get('name')}'), text {j} is still "
-                    f"the placeholder"
-                )
+        if bool(texts) == bool(bodies):
+            problems.append(f"scenario {i} needs exactly one of texts or bodies")
+        if texts and any(not str(text).strip() for text in texts):
+            problems.append(f"scenario {i} contains empty text")
+        if bodies and any(not isinstance(body, dict) for body in bodies):
+            problems.append(f"scenario {i} contains a non-dictionary body")
     return problems
